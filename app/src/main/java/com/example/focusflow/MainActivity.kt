@@ -7,6 +7,11 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 
+import android.os.Vibrator
+import android.os.VibrationEffect
+import android.content.Context
+import android.os.Build
+
 class MainActivity : AppCompatActivity() {
 
     // 定义控件变量
@@ -63,6 +68,28 @@ class MainActivity : AppCompatActivity() {
                 btnStart.text = "开始专注"
                 Toast.makeText(this@MainActivity, "专注完成！", Toast.LENGTH_LONG).show()
                 // 下一步我们会在这里加上震动和停止音乐
+                override fun onFinish() {
+                    // 1. UI 归位
+                    isRunning = false
+                    timerView.updateProgress(0f)
+                    tvTime.text = "00:00"
+                    btnStart.text = "开始专注"
+
+                    // 2. 触发震动 (核心硬件调用代码)
+                    val vibrator = getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
+                    if (vibrator.hasVibrator()) {
+                        // 兼容不同版本的震动 API
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                            // 震动 1秒 (1000毫秒)，强度默认
+                            vibrator.vibrate(VibrationEffect.createOneShot(1000, VibrationEffect.DEFAULT_AMPLITUDE))
+                        } else {
+                            // 旧版本写法
+                            vibrator.vibrate(1000)
+                        }
+                    }
+
+                    Toast.makeText(this@MainActivity, "专注完成！", Toast.LENGTH_LONG).show()
+                }
             }
         }.start()
     }
