@@ -13,9 +13,9 @@
             android:text="使用说明"
             android:textSize="24sp"
             android:textStyle="bold"
+            android:layout_marginBottom="20dp"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="20dp"/>
+            android:layout_height="wrap_content"/>
 
         <TextView
             android:text="1. 如何开始？\n拖动主页滑块设定时间，点击按钮即可开始专注。\n\n2. 关于震动\n专注结束时，手机会震动提醒。\n\n3. 白噪音\n专注开始后，App会自动播放雨声白噪音，帮助你集中注意力。\n\n4. 注意事项\n为了保证专注效果，中途无法暂停，只能选择'放弃'。"
