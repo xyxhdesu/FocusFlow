@@ -19,6 +19,9 @@
         android:theme="@style/Theme.FocusFlow"
         tools:targetApi="31">
         <activity
+            android:name=".HistoryActivity"
+            android:exported="false" />
+        <activity
             android:name=".AboutActivity"
             android:exported="false" />
         <activity

@@ -8,7 +8,9 @@ import android.widget.SeekBar
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
-
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 class MainActivity : AppCompatActivity() {
 
     private lateinit var timerView: CircularTimerView
@@ -25,6 +27,18 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+
+        findViewById<Button>(R.id.btnHelp).setOnClickListener {
+            startActivity(Intent(this, HelpActivity::class.java))
+        }
+
+        findViewById<Button>(R.id.btnAbout).setOnClickListener {
+            startActivity(Intent(this, AboutActivity::class.java))
+        }
+
+        findViewById<Button>(R.id.btnHistory).setOnClickListener {
+            startActivity(Intent(this, HistoryActivity::class.java))
+        }
 
         timerView = findViewById(R.id.timerView)
         tvTime = findViewById(R.id.tvTime)
@@ -105,6 +119,17 @@ class MainActivity : AppCompatActivity() {
         tvTime.text = "00:00"
         btnStart.text = "开始专注"
         sbTime.isEnabled = true
+
+        // ⬇️⬇️⬇️ 新增：保存到数据库 ⬇️⬇️⬇️
+        val dao = AppDatabase.getDatabase(this).focusDao()
+        val currentTime = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).format(Date())
+
+        // 计算专注时长 (根据 currentDuration 算出分钟数)
+        val minutes = currentDuration / 1000 / 60
+
+        val record = FocusRecord(date = currentTime, duration = "${minutes}分钟")
+        dao.insert(record)
+        // ⬆️⬆️⬆️ 新增结束 ⬆️⬆️⬆️
 
         // ⬇️⬇️⬇️ 新增：停止音乐服务 ⬇️⬇️⬇️
         stopService(Intent(this, MusicService::class.java))
