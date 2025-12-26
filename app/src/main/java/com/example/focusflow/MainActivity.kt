@@ -1,105 +1,124 @@
 package com.example.focusflow
 
-import android.os.Bundle
-import android.os.CountDownTimer
+import android.content.Context
+import android.content.Intent
+import android.os.*
 import android.widget.Button
+import android.widget.SeekBar
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 
-import android.os.Vibrator
-import android.os.VibrationEffect
-import android.content.Context
-import android.os.Build
-
 class MainActivity : AppCompatActivity() {
 
-    // 定义控件变量
     private lateinit var timerView: CircularTimerView
     private lateinit var tvTime: TextView
     private lateinit var btnStart: Button
+    private lateinit var sbTime: SeekBar // 新增
 
-    // 倒计时工具
     private var timer: CountDownTimer? = null
     private var isRunning = false
 
+    // 当前设定的时长（默认为25分钟，单位毫秒）
+    private var currentDuration: Long = 25 * 60 * 1000
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        // 1. 确保这里是 R.layout.activity_main (对应你的xml文件名)
         setContentView(R.layout.activity_main)
 
-        // 2. 初始化控件 (关联 XML 里的 ID)
         timerView = findViewById(R.id.timerView)
         tvTime = findViewById(R.id.tvTime)
         btnStart = findViewById(R.id.btnStart)
+        sbTime = findViewById(R.id.sbTime) // 绑定 SeekBar
 
-        // 3. 设置按钮点击事件
+        // 1. 设置 SeekBar 的监听器
+        sbTime.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
+                if (fromUser) {
+                    // 防止设置为0分钟，最少1分钟
+                    val minutes = if (progress < 1) 1 else progress
+
+                    // 更新全局时长变量
+                    currentDuration = minutes * 60 * 1000L
+
+                    // 更新界面文字显示
+                    tvTime.text = String.format("%02d:00", minutes)
+                }
+            }
+            override fun onStartTrackingTouch(seekBar: SeekBar?) {}
+            override fun onStopTrackingTouch(seekBar: SeekBar?) {}
+        })
+
+        // 2. 按钮点击
         btnStart.setOnClickListener {
             if (isRunning) {
                 stopTimer()
             } else {
-                startTimer(25 * 60 * 1000) // 25分钟
+                startTimer(currentDuration) // 使用 SeekBar 设定的时间
             }
         }
     }
 
-    // 开始倒计时逻辑
     private fun startTimer(totalTimeInMillis: Long) {
         isRunning = true
-        btnStart.text = "放弃专注" // 改变按钮文字
+        btnStart.text = "放弃"
+        sbTime.isEnabled = false // 专注期间禁止调节时间
 
-        timer = object : CountDownTimer(totalTimeInMillis, 100) { // 每100毫秒更新一次
+        startForegroundService(Intent(this, MusicService::class.java))
+
+        timer = object : CountDownTimer(totalTimeInMillis, 100) {
             override fun onTick(millisUntilFinished: Long) {
-                // 1. 更新圆环进度 (剩余时间 / 总时间)
+                // 更新进度条
                 val progress = millisUntilFinished.toFloat() / totalTimeInMillis
                 timerView.updateProgress(progress)
 
-                // 2. 更新文字 (格式化为 mm:ss)
+                // 更新时间文字
                 val minutes = (millisUntilFinished / 1000) / 60
                 val seconds = (millisUntilFinished / 1000) % 60
                 tvTime.text = String.format("%02d:%02d", minutes, seconds)
             }
 
             override fun onFinish() {
-                // 倒计时结束
-                isRunning = false
-                timerView.updateProgress(0f)
-                tvTime.text = "00:00"
-                btnStart.text = "开始专注"
-                Toast.makeText(this@MainActivity, "专注完成！", Toast.LENGTH_LONG).show()
-                // 下一步我们会在这里加上震动和停止音乐
-                override fun onFinish() {
-                    // 1. UI 归位
-                    isRunning = false
-                    timerView.updateProgress(0f)
-                    tvTime.text = "00:00"
-                    btnStart.text = "开始专注"
-
-                    // 2. 触发震动 (核心硬件调用代码)
-                    val vibrator = getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
-                    if (vibrator.hasVibrator()) {
-                        // 兼容不同版本的震动 API
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                            // 震动 1秒 (1000毫秒)，强度默认
-                            vibrator.vibrate(VibrationEffect.createOneShot(1000, VibrationEffect.DEFAULT_AMPLITUDE))
-                        } else {
-                            // 旧版本写法
-                            vibrator.vibrate(1000)
-                        }
-                    }
-
-                    Toast.makeText(this@MainActivity, "专注完成！", Toast.LENGTH_LONG).show()
-                }
+                finishFocus() // 封装成一个方法，显得代码整洁
             }
         }.start()
     }
 
-    // 停止倒计时
     private fun stopTimer() {
         timer?.cancel()
         isRunning = false
-        timerView.updateProgress(1.0f) // 恢复满圈
-        tvTime.text = "25:00"
+        timerView.updateProgress(1.0f)
+
+        // 恢复时间显示为 SeekBar 当前选中的值
+        val minutes = currentDuration / 1000 / 60
+        tvTime.text = String.format("%02d:00", minutes)
+
+        stopService(Intent(this, MusicService::class.java))
+
         btnStart.text = "开始专注"
+        sbTime.isEnabled = true // 恢复滑动
+    }
+
+    private fun finishFocus() {
+        isRunning = false
+        timerView.updateProgress(0f)
+        tvTime.text = "00:00"
+        btnStart.text = "开始专注"
+        sbTime.isEnabled = true
+
+        // ⬇️⬇️⬇️ 新增：停止音乐服务 ⬇️⬇️⬇️
+        stopService(Intent(this, MusicService::class.java))
+
+        // 震动反馈 (保持原有代码)
+        val vibrator = getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
+        if (vibrator.hasVibrator()) {
+            // ... (保持震动代码不变)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                vibrator.vibrate(VibrationEffect.createOneShot(1000, VibrationEffect.DEFAULT_AMPLITUDE))
+            } else {
+                vibrator.vibrate(1000)
+            }
+        }
+        Toast.makeText(this, "专注完成！", Toast.LENGTH_SHORT).show()
     }
 }
